@@ -31,20 +31,6 @@ jobs:
       if: steps.check_title.outputs.valid == 'true'
       run: mkdir -p thumbs
 
-    - name: Download and Convert issue content to PNG
-      if: steps.check_title.outputs.valid == 'true'
-      run: |
-        imageURL=$(echo "${{ github.event.issue.body }}" | grep -oP '(?<=\()(.+?)(?=\))')
-        wget -O temp_image.jpg $imageURL
-        convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
-        rm temp_image.jpg
-
-    - name: Debug - Check if PNG file exists
-      if: steps.check_title.outputs.valid == 'true'
-      run: |
-        ls -l thumbs
-        echo "File exists: $(if [ -f "thumbs/${{ github.event.issue.title }}.png" ]; then echo "true"; else echo "false"; fi)"
-
     - name: Check if PNG file exists
       id: check_file_exists
       if: steps.check_title.outputs.valid == 'true'
@@ -57,18 +43,36 @@ jobs:
           echo "::set-output name=exists::false"
         fi
 
-    - name: Add PNG file to repository and close issue
+    - name: Respond to issue
       if: steps.check_title.outputs.valid == 'true'
       run: |
         if [ "${{ steps.check_file_exists.outputs.exists }}" == 'false' ]; then
-          git add "thumbs/${{ github.event.issue.title }}.png"
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-          git commit -m "Add PNG file for issue: #${{ github.event.issue.number }}"
-          git push
           echo "Successfully added thumbnail!"
+          # Post comment to issue
+          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Successfully added thumbnail!"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
         else
           echo "Thumbnail already exists"
+          # Post comment to issue
+          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Thumbnail already exists"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
         fi
+
+    - name: Download and Convert issue content to PNG
+      if: steps.check_title.outputs.valid == 'true' && steps.check_file_exists.outputs.exists != 'true'
+      run: |
+        imageURL=$(echo "${{ github.event.issue.body }}" | grep -oP '(?<=\()(.+?)(?=\))')
+        wget -O temp_image.jpg $imageURL
+        convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
+        rm temp_image.jpg
+
+    - name: Add PNG file to repository and close issue
+      if: steps.check_title.outputs.valid == 'true' && steps.check_file_exists.outputs.exists != 'true'
+      run: |
+        git add "thumbs/${{ github.event.issue.title }}.png"
+        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions"
+        git commit -m "Add PNG file for issue: #${{ github.event.issue.number }}"
+        git push
+        # Post comment to issue
+        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Successfully added thumbnail!"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
         # Close the issue
         curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"state": "closed"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
