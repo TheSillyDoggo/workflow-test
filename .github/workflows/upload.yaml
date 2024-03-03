@@ -11,12 +11,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
-      
+
     - name: Install required dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y imagemagick wget
-      
+
     - name: Check if title is a number
       id: check_title
       run: |
@@ -26,7 +26,11 @@ jobs:
         else
           echo "::set-output name=valid::true"
         fi
-      
+
+    - name: Create thumbs directory
+      if: steps.check_title.outputs.valid == 'true'
+      run: mkdir -p thumbs
+
     - name: Download and Convert issue content to PNG
       if: steps.check_title.outputs.valid == 'true'
       run: |
@@ -34,7 +38,7 @@ jobs:
         wget -O temp_image.jpg $imageURL
         convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
         rm temp_image.jpg
-      
+
     - name: Check if PNG file exists
       id: check_file_exists
       if: steps.check_title.outputs.valid == 'true'
@@ -45,7 +49,7 @@ jobs:
         else
           echo "::set-output name=exists::false"
         fi
-      
+
     - name: Add PNG file to repository and close issue
       if: steps.check_title.outputs.valid == 'true'
       run: |
