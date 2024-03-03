@@ -39,6 +39,12 @@ jobs:
         convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
         rm temp_image.jpg
 
+    - name: Debug - Check if PNG file exists
+      if: steps.check_title.outputs.valid == 'true'
+      run: |
+        ls -l thumbs
+        echo "File exists: $(if [ -f "thumbs/${{ github.event.issue.title }}.png" ]; then echo "true"; else echo "false"; fi)"
+
     - name: Check if PNG file exists
       id: check_file_exists
       if: steps.check_title.outputs.valid == 'true'
@@ -47,6 +53,7 @@ jobs:
           echo "Thumbnail already exists"
           echo "::set-output name=exists::true"
         else
+          echo "Thumbnail doesn't exist"
           echo "::set-output name=exists::false"
         fi
 
