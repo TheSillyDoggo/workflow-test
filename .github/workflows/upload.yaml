@@ -15,11 +15,14 @@ jobs:
     - name: Install required dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y imagemagick
+        sudo apt-get install -y imagemagick wget
       
-    - name: Convert issue content to PNG
+    - name: Download and Convert issue content to PNG
       run: |
-        echo "${{ github.event.issue.body }}" | convert - "${{ github.event.issue.title }}.png"
+        imageURL=$(echo "${{ github.event.issue.body }}" | grep -oP '(?<=\()(.+?)(?=\))')
+        wget -O temp_image.jpg $imageURL
+        convert temp_image.jpg "${{ github.event.issue.title }}.png"
+        rm temp_image.jpg
       
     - name: Add PNG file to repository
       run: |
