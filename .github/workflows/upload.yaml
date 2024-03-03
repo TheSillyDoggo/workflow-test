@@ -50,10 +50,14 @@ jobs:
           echo "Successfully added thumbnail!"
           # Post comment to issue
           curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Successfully added thumbnail!"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
+          # Close the issue
+          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"state": "closed"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}"
         else
           echo "Thumbnail already exists"
           # Post comment to issue
           curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Thumbnail already exists"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
+          # Close the issue
+          curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"state": "closed"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}"
         fi
 
     - name: Download and Convert issue content to PNG
@@ -64,7 +68,7 @@ jobs:
         convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
         rm temp_image.jpg
 
-    - name: Add PNG file to repository and close issue
+    - name: Add PNG file to repository
       if: steps.check_title.outputs.valid == 'true' && steps.check_file_exists.outputs.exists != 'true'
       run: |
         git add "thumbs/${{ github.event.issue.title }}.png"
@@ -72,7 +76,3 @@ jobs:
         git config --global user.name "GitHub Actions"
         git commit -m "Add PNG file for issue: #${{ github.event.issue.number }}"
         git push
-        # Post comment to issue
-        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"body": "Successfully added thumbnail!"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
-        # Close the issue
-        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"state": "closed"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
