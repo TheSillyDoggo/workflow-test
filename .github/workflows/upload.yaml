@@ -17,17 +17,47 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y imagemagick wget
       
+    - name: Check if title is a number
+      id: check_title
+      run: |
+        if ! [[ "${{ github.event.issue.title }}" =~ ^[0-9]+$ ]]; then
+          echo "Issue name must be a level id!"
+          echo "::set-output name=valid::false"
+        else
+          echo "::set-output name=valid::true"
+        fi
+      
     - name: Download and Convert issue content to PNG
+      if: steps.check_title.outputs.valid == 'true'
       run: |
         imageURL=$(echo "${{ github.event.issue.body }}" | grep -oP '(?<=\()(.+?)(?=\))')
         wget -O temp_image.jpg $imageURL
-        convert temp_image.jpg "${{ github.event.issue.title }}.png"
+        convert temp_image.jpg "thumbs/${{ github.event.issue.title }}.png"
         rm temp_image.jpg
       
-    - name: Add PNG file to repository
+    - name: Check if PNG file exists
+      id: check_file_exists
+      if: steps.check_title.outputs.valid == 'true'
       run: |
-        git add "${{ github.event.issue.title }}.png"
-        git config --global user.email "actions@github.com"
-        git config --global user.name "GitHub Actions"
-        git commit -m "Add PNG file for issue: #${{ github.event.issue.number }}"
-        git push
+        if [ -f "thumbs/${{ github.event.issue.title }}.png" ]; then
+          echo "Thumbnail already exists"
+          echo "::set-output name=exists::true"
+        else
+          echo "::set-output name=exists::false"
+        fi
+      
+    - name: Add PNG file to repository and close issue
+      if: steps.check_title.outputs.valid == 'true'
+      run: |
+        if [ "${{ steps.check_file_exists.outputs.exists }}" == 'false' ]; then
+          git add "thumbs/${{ github.event.issue.title }}.png"
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git commit -m "Add PNG file for issue: #${{ github.event.issue.number }}"
+          git push
+          echo "Successfully added thumbnail!"
+        else
+          echo "Thumbnail already exists"
+        fi
+        # Close the issue
+        curl -X POST -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -d '{"state": "closed"}' "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
